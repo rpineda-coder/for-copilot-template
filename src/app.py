@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
+from urllib.parse import unquote
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -112,3 +113,23 @@ def signup_for_activity(activity_name: str, email: str):
     # Add student
     activity["participants"].append(normalized_email)
     return {"message": f"Signed up {normalized_email} for {activity_name}", "participants": activity["participants"]}
+
+
+@app.delete("/activities/{activity_name}/participants/{email}")
+def unregister_participant(activity_name: str, email: str):
+    """Remove a participant from an activity"""
+    if activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    activity = activities[activity_name]
+    normalized_email = unquote(email).strip().lower()
+
+    participant_emails = [p.strip().lower() for p in activity["participants"]]
+    if normalized_email not in participant_emails:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    activity["participants"] = [
+        participant for participant in activity["participants"] if participant.strip().lower() != normalized_email
+    ]
+
+    return {"message": f"Removed {normalized_email} from {activity_name}", "participants": activity["participants"]}
